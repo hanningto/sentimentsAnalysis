@@ -1,0 +1,34 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model comments {
+  comment_id      Int     @id(map: "PK__comments__E79576879AA8D215") @default(autoincrement())
+  comment_text    String? @db.Text
+  video_id        Int?
+  sentiment_value Int
+  category        String  @db.VarChar(255)
+  videos          videos? @relation(fields: [video_id], references: [video_id], onDelete: NoAction, onUpdate: NoAction, map: "FK__comments__video___3E52440B")
+}
+
+model users {
+  user_id    Int    @id(map: "PK__users__B9BE370FDF15C72B") @default(autoincrement())
+  firstname  String @db.VarChar(255)
+  secondname String @db.VarChar(255)
+  username   String @unique(map: "UQ__users__F3DBC572A6F02D55") @db.VarChar(255)
+  email      String @unique(map: "UQ__users__AB6E61643C9C152D") @db.VarChar(255)
+}
+
+model videos {
+  video_id       Int        @id(map: "PK__videos__E8F11E108B909D14") @default(autoincrement())
+  youtube_id     String     @unique(map: "UQ__videos__DBC6CD3FE65AE308") @db.VarChar(255)
+  comments_count Int
+  title          String     @db.VarChar(255)
+  topic          String     @db.VarChar(255)
+  comments       comments[]
+}
