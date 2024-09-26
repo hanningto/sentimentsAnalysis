@@ -1,13 +1,17 @@
 import { Router } from "express";
 import { dbCheck, idValidator } from "../middlewares/videoMiddlewares/idValidator.mjs";
-import { analysis, analysisInfo } from "../controllers/video.Controllers.mjs";
+import { analysis, analysisInfo, deleteVideo } from "../controllers/video.Controllers.mjs";
 
 const videoRouter = Router()
 
 videoRouter.route('/videos')
-                        .post(idValidator,analysisInfo)
+                        .get(analysisInfo)
+
 videoRouter.route('/analysis')
                         .post( idValidator, dbCheck,analysis)
+
+videoRouter.route('/videos:id')
+                .delete(deleteVideo)
 
 
 export default videoRouter

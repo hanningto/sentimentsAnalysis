@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import {google} from "googleapis"
 import Sentiment from "sentiment";
 import { idFinder } from "../middlewares/helperFuntions/videosId.mjs";
+import { addCommentsToDb } from "../middlewares/helperFuntions/addCommentsToDb.mjs";
 
 const prisma = new PrismaClient();
 const sentiment = new Sentiment();
@@ -27,7 +28,7 @@ export const analysisInfo = async (req, res) => {
 
 export const analysis = async (req, res) => {
   try {
-    const {id} = req.body
+    const { id } = req.body;
 
     const response = await youtube.commentThreads.list({
       part: "snippet",
@@ -36,42 +37,50 @@ export const analysis = async (req, res) => {
     });
 
     const comments = response.data.items.map((item) => {
-      return item.snippet.topLevelComment.snippet.textDisplay // The text of the comment
+      return item.snippet.topLevelComment.snippet.textDisplay;
     });
 
-    const sentimentAnalysis = comments.map((comment) =>{
-        const analysis = sentiment.analyze(comment)
-        var category = ''
-        if (analysis.score > 0){
-          category = "positive"
-        }
-        else if( analysis.score === 0 ){
-          category = "neutral"
-        }
-        else{
-          category = "negative"
-        }
+    const video_id = await idFinder(id);
+    console.log(`from idFinder ${video_id}`)
 
-        try {
-          const comnt = prisma.comments.create({
-            data: {
-              comment_text: comment,
-              sentiment_value: analysis.score,
-              category: category,
-              video_id: idFinder(id)
-            }
-          })
-          return comnt
+    // Process comments sequentially to avoid overwhelming the call stack
+    for (const comment of comments) {
+      const analysis = sentiment.analyze(comment);
+      let category = "";
 
-        } catch (error) {
-          res.status(500).json({error: "Error adding comment to database"})
-        }
-    })
-    console.log(sentimentAnalysis)
-    res.send(comments)
+      if (analysis.score > 0) {
+        category = "positive";
+      } else if (analysis.score === 0) {
+        category = "neutral";
+      } else {
+        category = "negative";
+      }
 
-    
+      const score = analysis.score;
+
+      // Adding each comment to the database
+      await addCommentsToDb(comment, category, score, video_id);
+    }
+
+    res.send(comments);
   } catch (error) {
     console.error("Error fetching YouTube comments:", error);
+    res.status(500).send("An error occurred while fetching YouTube comments.");
   }
 };
+
+export const deleteVideo = async (req, res) => {
+  try {
+    const {id} = req.body
+
+    const video = await prisma.videos.delete({
+      where: {
+        video_id: parseInt(id)
+      }
+    })
+    res.status(200).json({message: "Video Deleted Successfully"})
+  } catch (error) {
+    console.log("Unable to delete video")
+    res.status.json({error: `Error Deleting video: ${video}`})
+  }
+}
